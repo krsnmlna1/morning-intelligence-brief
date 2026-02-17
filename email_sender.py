@@ -199,7 +199,8 @@ class EmailGenerator:
         discussions_html = ""
         for item in ai_ml['discussions'][:6]:
             # Only show subreddit label if it exists and is not N/A
-            subreddit_label = f" • r/{item['subreddit']}" if item.get('subreddit') and item.get('subreddit') != 'N/A' else ""
+            subreddit = item.get('subreddit')
+            subreddit_label = f" • r/{subreddit}" if subreddit and subreddit != 'N/A' else ""
             discussions_html += f"""
             <div class="item">
                 <div class="item-title">
