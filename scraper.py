@@ -51,10 +51,10 @@ class IntelligenceScraper:
             print(f"Error fetching HackerNews: {e}")
             return []
 
-    def fetch_hackernews_category(self, keywords: List[str], limit=5) -> List[Dict]:
+    def fetch_hackernews_category(self, keywords: List[str], limit=5, hn_pool: List[Dict] = None) -> List[Dict]:
         """Fetch HackerNews stories filtered by keywords"""
         try:
-            all_stories = self.fetch_hackernews_top(30)
+            all_stories = hn_pool if hn_pool else self.fetch_hackernews_top(50)
             filtered = []
             for story in all_stories:
                 title_lower = story['title'].lower()
@@ -224,53 +224,74 @@ class IntelligenceScraper:
         """Collect data from all sources"""
         print("🔍 Collecting intelligence data...")
 
-        # Fetch HackerNews once, reuse for filtering
-        print("  📰 Fetching HackerNews...")
-        hn_all = self.fetch_hackernews_top(30)
+        # Fetch HackerNews ONCE with large pool, reuse everywhere
+        print("  📰 Fetching HackerNews (large pool)...")
+        hn_pool = self.fetch_hackernews_top(60)
 
-        print("  🤖 Fetching AI/ML data...")
+        AI_KEYWORDS = [
+            'ai', 'gpt', 'llm', 'llms', 'openai', 'claude', 'anthropic', 'gemini',
+            'machine learning', 'deep learning', 'neural network', 'artificial intelligence',
+            'mistral', 'ollama', 'diffusion', 'transformer', 'rag', 'agent', 'copilot',
+            'chatgpt', 'stable diffusion', 'midjourney', 'hugging face', 'langchain',
+            'fine-tun', 'inference', 'embedding', 'vector db', 'multimodal'
+        ]
+        STARTUP_KEYWORDS = [
+            'startup', 'launch', 'funding', 'raises', 'yc ', 'y combinator',
+            'seed round', 'series a', 'series b', 'acquired', 'ipo', 'venture',
+            'founder', 'saas', 'b2b', 'pivot', 'runway', 'bootstrapped', 'mrr', 'arr'
+        ]
+        JOB_KEYWORDS = [
+            'hiring', 'we\'re hiring', 'remote job', 'job opening', 'looking for',
+            'senior engineer', 'full-stack', 'fullstack', 'backend engineer',
+            'frontend engineer', 'software engineer', 'freelance', 'contract',
+            'founding engineer', 'join our team', 'work from home', 'ask hn: who is hiring'
+        ]
+        WORLD_KEYWORDS = [
+            'china', 'usa', 'europe', 'russia', 'ukraine', 'war', 'election',
+            'government', 'policy', 'regulation', 'economy', 'recession', 'inflation',
+            'climate', 'energy', 'nuclear', 'senate', 'congress', 'supreme court',
+            'tariff', 'trade', 'sanction', 'geopolit', 'global', 'international'
+        ]
+
+        print("  🤖 Fetching AI/ML sources...")
         data = {
             'timestamp': datetime.now().isoformat(),
             'tech_news': {
-                'hackernews': hn_all[:10],
+                'hackernews': hn_pool[:10],
                 'devto_webdev': self.fetch_dev_to('webdev', 5),
                 'devto_programming': self.fetch_dev_to('programming', 5),
             },
             'ai_ml': {
-                'hackernews_ai': self.fetch_hackernews_category(
-                    ['AI', 'GPT', 'LLM', 'machine learning', 'neural', 'OpenAI', 'Claude', 'Anthropic', 'Gemini', 'artificial intelligence', 'deep learning'], 5
-                ),
+                'hackernews_ai': self.fetch_hackernews_category(AI_KEYWORDS, 8, hn_pool),
                 'devto_ai': self.fetch_dev_to('ai', 5),
+                'devto_machinelearning': self.fetch_dev_to('machinelearning', 5),
                 'github_trending_python': self.fetch_github_trending('python'),
-                'github_trending_ai': self.fetch_github_trending(''),
+                'github_trending_jupyter': self.fetch_github_trending('jupyter notebook'),
             },
             'startups': {
-                'hackernews_startup': self.fetch_hackernews_category(
-                    ['startup', 'launch', 'funding', 'raises', 'YC', 'seed', 'series', 'acquired', 'IPO'], 5
-                ),
-                'devto_career': self.fetch_dev_to('career', 3),
+                'hackernews_startup': self.fetch_hackernews_category(STARTUP_KEYWORDS, 6, hn_pool),
+                'devto_career': self.fetch_dev_to('career', 4),
+                'devto_entrepreneur': self.fetch_dev_to('entrepreneur', 4),
             },
             'remote_jobs': {
-                'hackernews_jobs': self.fetch_hackernews_category(
-                    ['hiring', 'job', 'remote', 'engineer', 'developer', 'freelance', 'work from home'], 5
-                ),
+                'hackernews_jobs': self.fetch_hackernews_category(JOB_KEYWORDS, 6, hn_pool),
                 'devto_career': self.fetch_dev_to('career', 5),
+                'devto_jobs': self.fetch_dev_to('jobs', 5),
             },
             'world_news': {
-                'hackernews_news': self.fetch_hackernews_category(
-                    ['policy', 'government', 'economy', 'climate', 'regulation', 'law', 'geopolitic', 'war', 'election', 'global'], 5
-                ),
+                'hackernews_world': self.fetch_hackernews_category(WORLD_KEYWORDS, 8, hn_pool),
             }
         }
 
-        print("  🔴 Fetching Reddit (may be slow)...")
         # Reddit as bonus - add if available, skip if blocked
+        print("  🔴 Fetching Reddit...")
         reddit_sources = [
-            ('ai_ml', 'reddit_machinelearning', 'MachineLearning', 5),
+            ('ai_ml', 'reddit_machinelearning', 'MachineLearning', 6),
             ('ai_ml', 'reddit_localllama', 'LocalLLaMA', 5),
             ('startups', 'reddit_startups', 'startups', 5),
-            ('remote_jobs', 'reddit_remotejobs', 'remotejobs', 5),
-            ('world_news', 'reddit_worldnews', 'worldnews', 5),
+            ('remote_jobs', 'reddit_remotejobs', 'remotework', 5),
+            ('world_news', 'reddit_worldnews', 'worldnews', 6),
+            ('world_news', 'reddit_geopolitics', 'geopolitics', 4),
         ]
 
         for category, key, subreddit, limit in reddit_sources:
@@ -279,15 +300,14 @@ class IntelligenceScraper:
                 data[category][key] = posts
                 print(f"    ✅ r/{subreddit}: {len(posts)} posts")
             else:
-                print(f"    ⚠️  r/{subreddit}: no data (skipped)")
+                print(f"    ⚠️  r/{subreddit}: skipped")
 
-        # Add NewsAPI if key available
+        # NewsAPI if key available
         if self.news_api_key:
             print("  📡 Fetching NewsAPI...")
-            data['news_api'] = {
-                'tech': self.fetch_news_api('technology OR artificial intelligence', 'technology'),
-                'business': self.fetch_news_api('', 'business'),
-            }
+            data['world_news']['newsapi_general'] = self.fetch_news_api('', 'general')
+            data['world_news']['newsapi_business'] = self.fetch_news_api('', 'business')
+            data['ai_ml']['newsapi_tech'] = self.fetch_news_api('artificial intelligence OR machine learning')
 
         print("✅ Data collection complete!")
         return data
