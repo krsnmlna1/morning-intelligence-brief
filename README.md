@@ -1,6 +1,6 @@
 # ☀️ Morning Intelligence Brief
 
-Automated daily email digest yang kasih lo ringkasan tentang:
+Automated daily email digest that provides you with summaries about:
 - 💻 Tech News & Development
 - 🤖 AI & Machine Learning Updates
 - 🚀 Startup & Business Insights
@@ -13,79 +13,79 @@ Automated daily email digest yang kasih lo ringkasan tentang:
 
 ## 🎯 Features
 
-- ✅ Scrapes data dari HackerNews, Reddit, GitHub Trending
+- ✅ Scrapes data from HackerNews, Reddit, GitHub Trending
 - ✅ AI-powered summarization & ranking
 - ✅ Beautiful HTML email format
-- ✅ Runs automatically setiap pagi jam 7 WIB
+- ✅ Runs automatically every morning at 7 AM WIB
 - ✅ Zero cost (free tier everything)
 - ✅ GitHub Actions automation
 
 ---
 
-## 🚀 Quick Setup (15 menit)
+## 🚀 Quick Setup (15 minutes)
 
 ### Step 1: Fork Repository
 
-1. Klik tombol **Fork** di GitHub
-2. Clone repo lo ke local (optional, buat testing)
+1. Click the **Fork** button on GitHub
+2. Clone your repo to local (optional, for testing)
 
 ### Step 2: Setup Email (Gmail)
 
-Lo butuh 2 Gmail accounts:
-- **Account A**: Email yang bakal **NERIMA** brief (email lo sehari-hari)
-- **Account B**: Email yang bakal **NGIRIM** brief (bikin baru aja, gratis)
+You need 2 Gmail accounts:
+- **Account A**: Email that will **RECEIVE** the brief (your daily email)
+- **Account B**: Email that will **SEND** the brief (create a new one, it's free)
 
 #### Setup Account B (Sender Email):
 
-1. Buat Gmail baru (contoh: `myintelligencebrief@gmail.com`)
+1. Create a new Gmail (example: `myintelligencebrief@gmail.com`)
 2. Enable **2-Step Verification**:
    - Go to: https://myaccount.google.com/security
    - Enable "2-Step Verification"
 3. Generate **App Password**:
    - Go to: https://myaccount.google.com/apppasswords
    - Select app: "Mail"
-   - Select device: "Other" → tulis "Morning Brief"
+   - Select device: "Other" → type "Morning Brief"
    - Click **Generate**
-   - **COPY** password (16 karakter, misal: `abcd efgh ijkl mnop`)
+   - **COPY** the password (16 characters, e.g.: `abcd efgh ijkl mnop`)
 
 ### Step 3: Setup GitHub Secrets
 
-Di GitHub repo lo, go to:
+In your GitHub repo, go to:
 **Settings** → **Secrets and variables** → **Actions** → **New repository secret**
 
-Tambahin 3 secrets:
+Add 3 secrets:
 
 | Name | Value | Example |
 |------|-------|---------|
-| `RECIPIENT_EMAIL` | Email lo yang nerima brief | `yourname@gmail.com` |
+| `RECIPIENT_EMAIL` | Your email that receives the brief | `yourname@gmail.com` |
 | `SMTP_EMAIL` | Email sender (Account B) | `myintelligencebrief@gmail.com` |
-| `SMTP_PASSWORD` | App password dari Account B | `abcd efgh ijkl mnop` |
+| `SMTP_PASSWORD` | App password from Account B | `abcd efgh ijkl mnop` |
 
-**Optional** (kalo mau pake NewsAPI - free tier):
+**Optional** (if you want to use NewsAPI - free tier):
 | Name | Value | How to get |
 |------|-------|------------|
-| `NEWS_API_KEY` | API key | Daftar di https://newsapi.org/register (free) |
+| `NEWS_API_KEY` | API key | Register at https://newsapi.org/register (free) |
 
 ### Step 4: Activate GitHub Actions
 
-1. Go to **Actions** tab di repo lo
-2. Klik **"I understand my workflows, go ahead and enable them"**
-3. Done! Workflow bakal jalan otomatis jam 7 pagi WIB
+1. Go to the **Actions** tab in your repo
+2. Click **"I understand my workflows, go ahead and enable them"**
+3. Done! The workflow will run automatically at 7 AM WIB
 
 ---
 
-## 🧪 Testing Manual
+## 🧪 Manual Testing
 
-Buat test langsung tanpa nunggu jam 7 pagi:
+To test immediately without waiting for 7 AM:
 
 ### Option 1: GitHub Actions (Recommended)
 
-1. Go to **Actions** tab
-2. Klik **"Morning Intelligence Brief"** workflow
-3. Klik **"Run workflow"** dropdown
-4. Klik **"Run workflow"** button
-5. Wait ~30-60 detik
-6. Check email lo!
+1. Go to the **Actions** tab
+2. Click **"Morning Intelligence Brief"** workflow
+3. Click the **"Run workflow"** dropdown
+4. Click the **"Run workflow"** button
+5. Wait ~30-60 seconds
+6. Check your email!
 
 ### Option 2: Local Testing
 
@@ -110,7 +110,7 @@ python main.py
 
 ## 📧 Email Preview
 
-Email lo bakal keliatan kayak gini:
+Your email will look like this:
 
 ```
 ☀️ Morning Intelligence Brief
@@ -156,7 +156,7 @@ Friday, February 14, 2026 • Generated at 07:00 WIB
 
 ## ⚙️ Customization
 
-### Ubah Jadwal
+### Change Schedule
 
 Edit `.github/workflows/morning-brief.yml`:
 
@@ -165,14 +165,14 @@ schedule:
   - cron: '0 0 * * *'  # 00:00 UTC = 07:00 WIB
 ```
 
-Untuk jam lain (WIB = UTC + 7):
+For other times (WIB = UTC + 7):
 - 06:00 WIB → `cron: '0 23 * * *'`
 - 08:00 WIB → `cron: '0 1 * * *'`
 - 09:00 WIB → `cron: '0 2 * * *'`
 
-### Tambah Source Data
+### Add Data Sources
 
-Edit `scraper.py`, tambahin subreddit atau source lain:
+Edit `scraper.py`, add subreddit or other sources:
 
 ```python
 def collect_all_data(self):
@@ -184,33 +184,33 @@ def collect_all_data(self):
     }
 ```
 
-### Ubah Email Template
+### Change Email Template
 
-Edit `email_sender.py` di bagian `generate_html_email()` buat customize style/layout.
+Edit `email_sender.py` in the `generate_html_email()` section to customize style/layout.
 
 ---
 
 ## 🐛 Troubleshooting
 
-### Email ga sampai?
+### Email not arriving?
 
 1. **Check spam folder**
-2. **Verify secrets** di GitHub (Settings → Secrets)
-3. **Check Actions logs**: Actions tab → klik workflow run → lihat error
-4. **Gmail app password** bener? Harus 16 karakter tanpa spasi
-5. **2-Step Verification** udah enable di Gmail?
+2. **Verify secrets** in GitHub (Settings → Secrets)
+3. **Check Actions logs**: Actions tab → click workflow run → view error
+4. **Gmail app password** correct? Must be 16 characters without spaces
+5. **2-Step Verification** enabled in Gmail?
 
-### Workflow ga jalan?
+### Workflow not running?
 
 1. **Check Actions enabled**: Actions tab → enable workflows
 2. **Manual trigger**: Actions → Run workflow
-3. **Check logs**: Klik workflow run → lihat step mana yang fail
+3. **Check logs**: Click workflow run → see which step failed
 
-### Data kosong?
+### Empty data?
 
-- HackerNews/Reddit mungkin rate limiting
-- Tunggu beberapa menit, coba lagi
-- Check internet connection di GitHub Actions
+- HackerNews/Reddit might be rate limiting
+- Wait a few minutes, try again
+- Check internet connection in GitHub Actions
 
 ---
 
@@ -241,17 +241,17 @@ Edit `email_sender.py` di bagian `generate_html_email()` buat customize style/la
 - ✅ No data collection
 - ✅ No third-party services (except email)
 - ✅ Secrets encrypted by GitHub
-- ✅ Open source (audit sendiri)
-- ✅ Runs on GitHub infra (trusted)
+- ✅ Open source (audit it yourself)
+- ✅ Runs on GitHub infrastructure (trusted)
 
 ---
 
 ## 🎓 For Students
 
-Lo punya **GitHub Student Developer Pack**? Mantap! Meskipun system ini udah gratis, lo dapet bonus:
+Do you have **GitHub Student Developer Pack**? Great! Although this system is already free, you get bonuses:
 - GitHub Actions: Unlimited minutes (vs 2,000)
 - Private repos: Unlimited
-- Dan banyak tools lain buat development
+- And many other tools for development
 
 ---
 
@@ -268,10 +268,10 @@ Lo punya **GitHub Student Developer Pack**? Mantap! Meskipun system ini udah gra
 
 ## 🤝 Contributing
 
-Lo bisa improve system ini:
-1. Fork repo
-2. Bikin changes
-3. Submit pull request
+You can improve this system:
+1. Fork the repo
+2. Make changes
+3. Submit a pull request
 
 Ideas welcome! 💡
 
@@ -279,16 +279,16 @@ Ideas welcome! 💡
 
 ## 📝 License
 
-MIT License - pake sesuka lo, modify sesuka lo, share sesuka lo.
+MIT License - use it, modify it, share it as you like.
 
 ---
 
 ## 💬 Support
 
-Ada masalah? 
-1. Check troubleshooting section
+Having issues? 
+1. Check the troubleshooting section
 2. Check GitHub Actions logs
-3. Open GitHub issue
+3. Open a GitHub issue
 
 ---
 
