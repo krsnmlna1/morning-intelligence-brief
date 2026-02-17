@@ -24,6 +24,10 @@ class IntelligenceSummarizer:
 
         result = []
         for item in sorted_items:
+            # Filter out fake score 500 items (score >= 500 AND comments == 0)
+            if item.get('score', 0) >= 500 and item.get('comments', 0) == 0:
+                continue
+            
             title = item.get('title', '').strip().lower()
             if not title or title in self._used_titles:
                 continue
