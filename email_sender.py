@@ -198,13 +198,15 @@ class EmailGenerator:
         
         discussions_html = ""
         for item in ai_ml['discussions'][:6]:
+            # Only show subreddit label if it exists and is not N/A
+            subreddit_label = f" • r/{item['subreddit']}" if item.get('subreddit') and item.get('subreddit') != 'N/A' else ""
             discussions_html += f"""
             <div class="item">
                 <div class="item-title">
                     <a href="{item.get('url', '#')}" target="_blank">{item.get('title', 'No title')}</a>
                 </div>
                 <div class="item-meta">
-                    👍 {item.get('score', 0)} points • 💬 {item.get('comments', 0)} comments • r/{item.get('subreddit', 'N/A')}
+                    👍 {item.get('score', 0)} points • 💬 {item.get('comments', 0)} comments{subreddit_label}
                 </div>
             </div>
             """

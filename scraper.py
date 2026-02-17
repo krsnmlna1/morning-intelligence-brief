@@ -40,6 +40,7 @@ class IntelligenceScraper:
                 )
                 story_data = story_response.json()
                 if story_data and story_data.get('type') == 'story' and story_data.get('title'):
+                    # NOTE: HackerNews items must NOT have 'subreddit' field
                     stories.append({
                         'title': story_data.get('title', ''),
                         'url': story_data.get('url', f"https://news.ycombinator.com/item?id={story_id}"),
@@ -172,11 +173,10 @@ class IntelligenceScraper:
 
         # ── Keyword lists ────────────────────────────────────────────────────
         AI_KW = [
-            'ai', 'llm', 'gpt', 'openai', 'claude', 'anthropic', 'gemini', 'mistral',
-            'ollama', 'diffusion', 'transformer', 'neural network', 'machine learning',
-            'deep learning', 'artificial intelligence', 'chatgpt', 'copilot', 'rag ',
-            'vector db', 'fine-tun', 'inference', 'embedding', 'multimodal', 'llama',
-            'hugging face', 'langchain', 'agent', 'openrouter', 'deepseek', 'qwen',
+            'ai', 'llm', 'gpt', 'openai', 'claude', 'anthropic', 'gemini',
+            'mistral', 'ollama', 'transformer', 'neural network', 'machine learning',
+            'deep learning', 'chatgpt', 'copilot', 'llama', 'hugging face',
+            'langchain', 'deepseek', 'qwen', 'rag'
         ]
         STARTUP_KW = [
             'startup', 'we launched', 'show hn:', 'just launched', 'new tool',
@@ -185,18 +185,15 @@ class IntelligenceScraper:
             'bootstrapped', 'founder', 'side project', 'open source alternative',
         ]
         JOB_KW = [
-            "who is hiring", "ask hn: who", "we're hiring", "we are hiring",
-            'job opening', 'remote position', 'founding engineer', 'join our team',
-            'looking for engineer', 'looking for developer', 'hiring engineer',
-            'hiring developer', 'senior engineer', 'full-stack', 'backend engineer',
-            'frontend engineer', 'contract work', 'freelance',
+            'who is hiring', 'seeking work', 'available for hire', 'remote position',
+            'founding engineer', 'hiring engineer', 'hiring developer',
+            'looking for engineer', 'looking for developer', 'we are hiring',
+            'join our team'
         ]
         WORLD_KW = [
-            'china', 'russia', 'ukraine', 'europe', 'nato', 'war ', 'conflict',
-            'election', 'president', 'government', 'policy', 'regulation', 'law ',
-            'economy', 'recession', 'inflation', 'tariff', 'trade war', 'sanction',
-            'climate', 'nuclear', 'pentagon', 'congress', 'senate', 'supreme court',
-            'geopolit', 'international', 'global ', 'world ', 'country', 'nation',
+            'china', 'russia', 'ukraine', 'war', 'election', 'government',
+            'policy', 'regulation', 'economy', 'tariff', 'sanction', 'climate',
+            'nuclear', 'pentagon', 'congress', 'nato', 'geopolit', 'international'
         ]
 
         # ── Step 2: Build sections ───────────────────────────────────────────
@@ -229,6 +226,7 @@ class IntelligenceScraper:
             ('startups',    'r_startups',        'startups',         5),
             ('remote_jobs', 'r_remotework',      'remotework',       5),
             ('remote_jobs', 'r_forhire',         'forhire',          5),
+            ('remote_jobs', 'r_digitalnomad',    'digitalnomad',     5),
             ('world_news',  'r_worldnews',       'worldnews',        6),
             ('world_news',  'r_geopolitics',     'geopolitics',      4),
         ]
@@ -241,11 +239,8 @@ class IntelligenceScraper:
                 print(f"    ⚠️  r/{sub}: skipped")
 
         # ── Step 4: NewsAPI (optional) ───────────────────────────────────────
-        if self.news_api_key:
-            print("  📡 NewsAPI...")
-            data['world_news']['newsapi_general'] = self.fetch_news_api(category='general')
-            data['world_news']['newsapi_business'] = self.fetch_news_api(category='business')
-            data['ai_ml']['newsapi_tech'] = self.fetch_news_api('artificial intelligence OR machine learning')
+        # NewsAPI removed from ai_ml and world_news sections per requirements
+        # Can add back for other sections if needed
 
         print("✅ Collection complete!")
         return data
