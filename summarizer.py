@@ -21,85 +21,80 @@ class IntelligenceSummarizer:
         sorted_items = sorted(items, key=lambda x: x.get(key, 0), reverse=True)
         return sorted_items[:limit]
     
+    def flatten_section(self, section_data: dict) -> List[Dict]:
+        """Flatten all lists from a section dict into one combined list"""
+        combined = []
+        for value in section_data.values():
+            if isinstance(value, list):
+                combined.extend(value)
+        return combined
+
     def summarize_tech_news(self) -> Dict[str, Any]:
         """Summarize tech news from multiple sources"""
         tech_data = self.raw_data.get('tech_news', {})
-        
-        # Combine and rank all tech news
-        all_tech = []
-        all_tech.extend(tech_data.get('hackernews', []))
-        all_tech.extend(tech_data.get('reddit_programming', []))
-        all_tech.extend(tech_data.get('reddit_technology', []))
-        
+        all_tech = self.flatten_section(tech_data)
         top_tech = self.extract_top_items(all_tech, 'score', 8)
-        
+
         return {
             'title': '💻 Tech & Development',
             'items': top_tech,
             'summary': f"{len(top_tech)} trending topics in tech today"
         }
-    
+
     def summarize_ai_ml(self) -> Dict[str, Any]:
         """Summarize AI/ML developments"""
         ai_data = self.raw_data.get('ai_ml', {})
-        
-        all_ai = []
-        all_ai.extend(ai_data.get('reddit_machinelearning', []))
-        all_ai.extend(ai_data.get('reddit_localllama', []))
-        
-        top_ai = self.extract_top_items(all_ai, 'score', 6)
-        
-        # Add GitHub trending
-        github_repos = ai_data.get('github_trending', [])[:3]
-        
+
+        # Separate repos from discussions
+        github_repos = []
+        discussions = []
+        for key, value in ai_data.items():
+            if isinstance(value, list):
+                if 'github' in key:
+                    github_repos.extend(value)
+                else:
+                    discussions.extend(value)
+
+        top_ai = self.extract_top_items(discussions, 'score', 6)
+        top_repos = self.extract_top_items(github_repos, 'stars', 3)
+
         return {
             'title': '🤖 AI & Machine Learning',
             'discussions': top_ai,
-            'trending_repos': github_repos,
-            'summary': f"{len(top_ai)} AI discussions + {len(github_repos)} trending repos"
+            'trending_repos': top_repos,
+            'summary': f"{len(top_ai)} AI discussions + {len(top_repos)} trending repos"
         }
-    
+
     def summarize_startups(self) -> Dict[str, Any]:
         """Summarize startup news and entrepreneurship"""
         startup_data = self.raw_data.get('startups', {})
-        
-        all_startups = []
-        all_startups.extend(startup_data.get('reddit_startups', []))
-        all_startups.extend(startup_data.get('reddit_entrepreneur', []))
-        
+        all_startups = self.flatten_section(startup_data)
         top_startups = self.extract_top_items(all_startups, 'score', 5)
-        
+
         return {
             'title': '🚀 Startups & Business',
             'items': top_startups,
             'summary': f"{len(top_startups)} insights from startup community"
         }
-    
+
     def summarize_remote_jobs(self) -> Dict[str, Any]:
         """Summarize remote job opportunities and trends"""
         jobs_data = self.raw_data.get('remote_jobs', {})
-        
-        all_jobs = []
-        all_jobs.extend(jobs_data.get('reddit_remotejobs', []))
-        all_jobs.extend(jobs_data.get('reddit_forhire', []))
-        
+        all_jobs = self.flatten_section(jobs_data)
         top_jobs = self.extract_top_items(all_jobs, 'score', 6)
-        
+
         return {
             'title': '💼 Remote Opportunities',
             'items': top_jobs,
             'summary': f"{len(top_jobs)} remote job posts and discussions"
         }
-    
+
     def summarize_world_news(self) -> Dict[str, Any]:
         """Summarize important world news"""
         world_data = self.raw_data.get('world_news', {})
-        
-        all_news = []
-        all_news.extend(world_data.get('reddit_worldnews', []))
-        
+        all_news = self.flatten_section(world_data)
         top_news = self.extract_top_items(all_news, 'score', 5)
-        
+
         return {
             'title': '🌍 World News',
             'items': top_news,
