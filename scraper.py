@@ -11,6 +11,7 @@ from typing import Dict, List, Any
 import os
 import time
 
+
 class IntelligenceScraper:
     def __init__(self):
         self.news_api_key = os.getenv('NEWS_API_KEY', '')
@@ -22,309 +23,242 @@ class IntelligenceScraper:
             'Accept': 'application/json',
         }
 
-    def fetch_hackernews_top(self, limit=10) -> List[Dict]:
+    def fetch_hackernews_top(self, limit=60) -> List[Dict]:
         """Fetch top stories from HackerNews"""
         try:
-            top_stories_url = "https://hacker-news.firebaseio.com/v0/topstories.json"
-            response = requests.get(top_stories_url, timeout=10)
-            story_ids = response.json()[:limit * 2]  # Fetch more in case some are not stories
+            response = requests.get(
+                "https://hacker-news.firebaseio.com/v0/topstories.json", timeout=10
+            )
+            story_ids = response.json()[:limit * 2]
 
             stories = []
             for story_id in story_ids:
                 if len(stories) >= limit:
                     break
-                story_url = f"https://hacker-news.firebaseio.com/v0/item/{story_id}.json"
-                story_response = requests.get(story_url, timeout=10)
+                story_response = requests.get(
+                    f"https://hacker-news.firebaseio.com/v0/item/{story_id}.json", timeout=10
+                )
                 story_data = story_response.json()
-
-                if story_data and story_data.get('type') == 'story' and story_data.get('url'):
+                if story_data and story_data.get('type') == 'story' and story_data.get('title'):
                     stories.append({
-                        'title': story_data.get('title', 'No title'),
+                        'title': story_data.get('title', ''),
                         'url': story_data.get('url', f"https://news.ycombinator.com/item?id={story_id}"),
                         'score': story_data.get('score', 0),
                         'comments': story_data.get('descendants', 0),
                         'source': 'HackerNews'
                     })
-
             return stories
         except Exception as e:
             print(f"Error fetching HackerNews: {e}")
             return []
 
-    def fetch_hackernews_category(self, keywords: List[str], limit=5, hn_pool: List[Dict] = None) -> List[Dict]:
-        """Fetch HackerNews stories filtered by keywords"""
-        try:
-            all_stories = hn_pool if hn_pool else self.fetch_hackernews_top(50)
-            filtered = []
-            for story in all_stories:
-                title_lower = story['title'].lower()
-                if any(kw.lower() in title_lower for kw in keywords):
-                    filtered.append(story)
-                if len(filtered) >= limit:
-                    break
-            return filtered
-        except Exception as e:
-            print(f"Error filtering HackerNews: {e}")
-            return []
+    def filter_by_keywords(self, pool: List[Dict], keywords: List[str], limit=8) -> List[Dict]:
+        """Filter stories from pool by keywords in title"""
+        result = []
+        for story in pool:
+            title_lower = story.get('title', '').lower()
+            if any(kw.lower() in title_lower for kw in keywords):
+                result.append(story)
+            if len(result) >= limit:
+                break
+        return result
 
-    def fetch_reddit_hot(self, subreddit: str, limit=5) -> List[Dict]:
+    def fetch_reddit_hot(self, subreddit: str, limit=8) -> List[Dict]:
         """Fetch hot posts from a subreddit"""
         try:
-            url = f"https://www.reddit.com/r/{subreddit}/hot.json?limit={limit}&raw_json=1"
+            url = f"https://www.reddit.com/r/{subreddit}/hot.json?limit={limit + 3}&raw_json=1"
             response = requests.get(url, headers=self.reddit_headers, timeout=15)
 
             if response.status_code == 429:
-                print(f"Reddit rate limited for r/{subreddit}, waiting...")
-                time.sleep(2)
+                time.sleep(3)
                 response = requests.get(url, headers=self.reddit_headers, timeout=15)
 
             if response.status_code != 200:
-                print(f"Reddit r/{subreddit} returned status {response.status_code}")
+                print(f"Reddit r/{subreddit} → HTTP {response.status_code}")
                 return []
 
-            data = response.json()
             posts = []
-            for post in data.get('data', {}).get('children', []):
-                post_data = post.get('data', {})
-                # Skip stickied/pinned posts
-                if post_data.get('stickied', False):
+            for post in response.json().get('data', {}).get('children', []):
+                pd = post.get('data', {})
+                if pd.get('stickied'):
                     continue
                 posts.append({
-                    'title': post_data.get('title', 'No title'),
-                    'url': f"https://reddit.com{post_data.get('permalink', '')}",
-                    'score': post_data.get('score', 0),
-                    'comments': post_data.get('num_comments', 0),
+                    'title': pd.get('title', ''),
+                    'url': f"https://reddit.com{pd.get('permalink', '')}",
+                    'score': pd.get('score', 0),
+                    'comments': pd.get('num_comments', 0),
                     'subreddit': subreddit,
                     'source': f'r/{subreddit}'
                 })
+                if len(posts) >= limit:
+                    break
 
-            time.sleep(0.5)  # Be polite to Reddit
+            time.sleep(0.5)
             return posts
         except Exception as e:
-            print(f"Error fetching Reddit r/{subreddit}: {e}")
+            print(f"Error fetching r/{subreddit}: {e}")
             return []
 
-    def fetch_github_trending(self, language: str = '') -> List[Dict]:
-        """Fetch trending repos from GitHub - FIXED: params now properly passed"""
+    def fetch_github_trending(self, language: str = '', topic: str = '') -> List[Dict]:
+        """Fetch trending GitHub repos"""
         try:
-            url = "https://api.github.com/search/repositories"
             week_ago = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
-
-            query = f"created:>{week_ago} stars:>10"
+            query = f"created:>{week_ago} stars:>20"
             if language:
                 query += f" language:{language}"
+            if topic:
+                query += f" topic:{topic}"
 
-            params = {
-                'q': query,
-                'sort': 'stars',
-                'order': 'desc',
-                'per_page': 5
-            }
-
-            # FIX: params now correctly passed to requests.get
-            response = requests.get(url, headers=self.headers, params=params, timeout=10)
-
+            params = {'q': query, 'sort': 'stars', 'order': 'desc', 'per_page': 5}
+            response = requests.get(
+                "https://api.github.com/search/repositories",
+                headers=self.headers, params=params, timeout=10
+            )
             if response.status_code != 200:
-                print(f"GitHub API returned status {response.status_code}")
                 return []
 
-            data = response.json()
             repos = []
-            for repo in data.get('items', []):
+            for repo in response.json().get('items', []):
                 repos.append({
-                    'name': repo.get('full_name', 'Unknown'),
+                    'name': repo.get('full_name', ''),
                     'description': repo.get('description', 'No description') or 'No description',
                     'url': repo.get('html_url', ''),
                     'stars': repo.get('stargazers_count', 0),
                     'language': repo.get('language', 'Unknown') or 'Unknown',
                     'source': 'GitHub'
                 })
-
             return repos
         except Exception as e:
             print(f"Error fetching GitHub trending: {e}")
             return []
 
-    def fetch_dev_to(self, tag: str = '', limit=5) -> List[Dict]:
-        """Fetch articles from dev.to (free, no auth needed)"""
-        try:
-            url = "https://dev.to/api/articles"
-            params = {
-                'per_page': limit,
-                'top': 1,  # top articles
-            }
-            if tag:
-                params['tag'] = tag
-
-            response = requests.get(url, headers=self.headers, params=params, timeout=10)
-            if response.status_code != 200:
-                return []
-
-            articles = []
-            for article in response.json():
-                articles.append({
-                    'title': article.get('title', 'No title'),
-                    'url': article.get('url', ''),
-                    'score': article.get('public_reactions_count', 0),
-                    'comments': article.get('comments_count', 0),
-                    'source': 'dev.to'
-                })
-            return articles
-        except Exception as e:
-            print(f"Error fetching dev.to tag={tag}: {e}")
-            return []
-
-    def fetch_news_api(self, query: str, category: str = None) -> List[Dict]:
-        """Fetch news from NewsAPI"""
+    def fetch_news_api(self, query: str = '', category: str = '') -> List[Dict]:
+        """Fetch from NewsAPI (optional)"""
         if not self.news_api_key:
             return []
-
         try:
-            yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
-
             if category:
                 url = "https://newsapi.org/v2/top-headlines"
-                params = {
-                    'apiKey': self.news_api_key,
-                    'category': category,
-                    'language': 'en',
-                    'pageSize': 5
-                }
+                params = {'apiKey': self.news_api_key, 'category': category, 'language': 'en', 'pageSize': 6}
             else:
+                yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
                 url = "https://newsapi.org/v2/everything"
-                params = {
-                    'apiKey': self.news_api_key,
-                    'q': query,
-                    'from': yesterday,
-                    'sortBy': 'popularity',
-                    'language': 'en',
-                    'pageSize': 5
-                }
+                params = {'apiKey': self.news_api_key, 'q': query, 'from': yesterday,
+                          'sortBy': 'popularity', 'language': 'en', 'pageSize': 6}
 
             response = requests.get(url, params=params, timeout=10)
-            data = response.json()
-
             articles = []
-            for article in data.get('articles', []):
-                if article.get('title') and '[Removed]' not in article.get('title', ''):
+            for a in response.json().get('articles', []):
+                if a.get('title') and '[Removed]' not in a.get('title', ''):
                     articles.append({
-                        'title': article.get('title', 'No title'),
-                        'url': article.get('url', ''),
-                        'source': article.get('source', {}).get('name', 'Unknown'),
-                        'description': article.get('description', ''),
-                        'score': 100,  # NewsAPI articles get high default score
+                        'title': a.get('title', ''),
+                        'url': a.get('url', ''),
+                        'score': 500,  # High but consistent score for NewsAPI
+                        'comments': 0,
+                        'source': a.get('source', {}).get('name', 'News')
                     })
-
             return articles
         except Exception as e:
-            print(f"Error fetching NewsAPI for {query}: {e}")
+            print(f"NewsAPI error: {e}")
             return []
 
     def collect_all_data(self) -> Dict[str, Any]:
         """Collect data from all sources"""
         print("🔍 Collecting intelligence data...")
 
-        # Fetch HackerNews ONCE with large pool, reuse everywhere
-        print("  📰 Fetching HackerNews (large pool)...")
-        hn_pool = self.fetch_hackernews_top(60)
+        # ── Step 1: Fetch HackerNews pool once ──────────────────────────────
+        print("  📰 HackerNews (60 stories)...")
+        hn = self.fetch_hackernews_top(60)
 
-        AI_KEYWORDS = [
-            'ai', 'gpt', 'llm', 'llms', 'openai', 'claude', 'anthropic', 'gemini',
-            'machine learning', 'deep learning', 'neural network', 'artificial intelligence',
-            'mistral', 'ollama', 'diffusion', 'transformer', 'rag', 'agent', 'copilot',
-            'chatgpt', 'stable diffusion', 'midjourney', 'hugging face', 'langchain',
-            'fine-tun', 'inference', 'embedding', 'vector db', 'multimodal'
+        # ── Keyword lists ────────────────────────────────────────────────────
+        AI_KW = [
+            'ai', 'llm', 'gpt', 'openai', 'claude', 'anthropic', 'gemini', 'mistral',
+            'ollama', 'diffusion', 'transformer', 'neural network', 'machine learning',
+            'deep learning', 'artificial intelligence', 'chatgpt', 'copilot', 'rag ',
+            'vector db', 'fine-tun', 'inference', 'embedding', 'multimodal', 'llama',
+            'hugging face', 'langchain', 'agent', 'openrouter', 'deepseek', 'qwen',
         ]
-        STARTUP_KEYWORDS = [
-            'startup', 'launch', 'funding', 'raises', 'yc ', 'y combinator',
-            'seed round', 'series a', 'series b', 'acquired', 'ipo', 'venture',
-            'founder', 'saas', 'b2b', 'pivot', 'runway', 'bootstrapped', 'mrr', 'arr'
+        STARTUP_KW = [
+            'startup', 'we launched', 'show hn:', 'just launched', 'new tool',
+            'funding', 'raises $', 'series a', 'series b', 'seed round',
+            'y combinator', 'yc ', 'acquired', 'ipo', 'saas', 'mrr', 'arr',
+            'bootstrapped', 'founder', 'side project', 'open source alternative',
         ]
-        JOB_KEYWORDS = [
-            'hiring', 'we\'re hiring', 'remote job', 'job opening', 'looking for',
-            'senior engineer', 'full-stack', 'fullstack', 'backend engineer',
-            'frontend engineer', 'software engineer', 'freelance', 'contract',
-            'founding engineer', 'join our team', 'work from home', 'ask hn: who is hiring'
+        JOB_KW = [
+            "who is hiring", "ask hn: who", "we're hiring", "we are hiring",
+            'job opening', 'remote position', 'founding engineer', 'join our team',
+            'looking for engineer', 'looking for developer', 'hiring engineer',
+            'hiring developer', 'senior engineer', 'full-stack', 'backend engineer',
+            'frontend engineer', 'contract work', 'freelance',
         ]
-        WORLD_KEYWORDS = [
-            'china', 'usa', 'europe', 'russia', 'ukraine', 'war', 'election',
-            'government', 'policy', 'regulation', 'economy', 'recession', 'inflation',
-            'climate', 'energy', 'nuclear', 'senate', 'congress', 'supreme court',
-            'tariff', 'trade', 'sanction', 'geopolit', 'global', 'international'
+        WORLD_KW = [
+            'china', 'russia', 'ukraine', 'europe', 'nato', 'war ', 'conflict',
+            'election', 'president', 'government', 'policy', 'regulation', 'law ',
+            'economy', 'recession', 'inflation', 'tariff', 'trade war', 'sanction',
+            'climate', 'nuclear', 'pentagon', 'congress', 'senate', 'supreme court',
+            'geopolit', 'international', 'global ', 'world ', 'country', 'nation',
         ]
 
-        print("  🤖 Fetching AI/ML sources...")
+        # ── Step 2: Build sections ───────────────────────────────────────────
         data = {
             'timestamp': datetime.now().isoformat(),
             'tech_news': {
-                'hackernews': hn_pool[:10],
-                'devto_webdev': self.fetch_dev_to('webdev', 5),
-                'devto_programming': self.fetch_dev_to('programming', 5),
+                'hackernews_top': hn[:10],
             },
             'ai_ml': {
-                'hackernews_ai': self.fetch_hackernews_category(AI_KEYWORDS, 8, hn_pool),
-                'devto_ai': self.fetch_dev_to('ai', 5),
-                'devto_machinelearning': self.fetch_dev_to('machinelearning', 5),
-                'github_trending_python': self.fetch_github_trending('python'),
-                'github_trending_jupyter': self.fetch_github_trending('jupyter notebook'),
+                'hackernews_ai': self.filter_by_keywords(hn, AI_KW, 8),
+                'github_python': self.fetch_github_trending('python'),
+                'github_ai_topic': self.fetch_github_trending(topic='machine-learning'),
             },
             'startups': {
-                'hackernews_startup': self.fetch_hackernews_category(STARTUP_KEYWORDS, 6, hn_pool),
-                'devto_career': self.fetch_dev_to('career', 4),
-                'devto_entrepreneur': self.fetch_dev_to('entrepreneur', 4),
+                'hackernews_startup': self.filter_by_keywords(hn, STARTUP_KW, 6),
             },
             'remote_jobs': {
-                'hackernews_jobs': self.fetch_hackernews_category(JOB_KEYWORDS, 6, hn_pool),
-                'devto_career': self.fetch_dev_to('career', 5),
-                'devto_jobs': self.fetch_dev_to('jobs', 5),
+                'hackernews_jobs': self.filter_by_keywords(hn, JOB_KW, 6),
             },
             'world_news': {
-                'hackernews_world': self.fetch_hackernews_category(WORLD_KEYWORDS, 8, hn_pool),
+                'hackernews_world': self.filter_by_keywords(hn, WORLD_KW, 8),
             }
         }
 
-        # Reddit as bonus - add if available, skip if blocked
-        print("  🔴 Fetching Reddit...")
-        reddit_sources = [
-            ('ai_ml', 'reddit_machinelearning', 'MachineLearning', 6),
-            ('ai_ml', 'reddit_localllama', 'LocalLLaMA', 5),
-            ('startups', 'reddit_startups', 'startups', 5),
-            ('remote_jobs', 'reddit_remotejobs', 'remotework', 5),
-            ('world_news', 'reddit_worldnews', 'worldnews', 6),
-            ('world_news', 'reddit_geopolitics', 'geopolitics', 4),
+        # ── Step 3: Reddit (bonus, skip if blocked) ──────────────────────────
+        print("  🔴 Reddit...")
+        reddit_map = [
+            ('ai_ml',       'r_machinelearning', 'MachineLearning',  6),
+            ('ai_ml',       'r_localllama',      'LocalLLaMA',       5),
+            ('startups',    'r_startups',        'startups',         5),
+            ('remote_jobs', 'r_remotework',      'remotework',       5),
+            ('remote_jobs', 'r_forhire',         'forhire',          5),
+            ('world_news',  'r_worldnews',       'worldnews',        6),
+            ('world_news',  'r_geopolitics',     'geopolitics',      4),
         ]
-
-        for category, key, subreddit, limit in reddit_sources:
-            posts = self.fetch_reddit_hot(subreddit, limit)
+        for cat, key, sub, lim in reddit_map:
+            posts = self.fetch_reddit_hot(sub, lim)
             if posts:
-                data[category][key] = posts
-                print(f"    ✅ r/{subreddit}: {len(posts)} posts")
+                data[cat][key] = posts
+                print(f"    ✅ r/{sub}: {len(posts)}")
             else:
-                print(f"    ⚠️  r/{subreddit}: skipped")
+                print(f"    ⚠️  r/{sub}: skipped")
 
-        # NewsAPI if key available
+        # ── Step 4: NewsAPI (optional) ───────────────────────────────────────
         if self.news_api_key:
-            print("  📡 Fetching NewsAPI...")
-            data['world_news']['newsapi_general'] = self.fetch_news_api('', 'general')
-            data['world_news']['newsapi_business'] = self.fetch_news_api('', 'business')
+            print("  📡 NewsAPI...")
+            data['world_news']['newsapi_general'] = self.fetch_news_api(category='general')
+            data['world_news']['newsapi_business'] = self.fetch_news_api(category='business')
             data['ai_ml']['newsapi_tech'] = self.fetch_news_api('artificial intelligence OR machine learning')
 
-        print("✅ Data collection complete!")
+        print("✅ Collection complete!")
         return data
+
 
 def main():
     scraper = IntelligenceScraper()
     data = scraper.collect_all_data()
-    
-    # Save to JSON file
-    output_file = 'data/raw_data.json'
     os.makedirs('data', exist_ok=True)
-    
-    with open(output_file, 'w', encoding='utf-8') as f:
+    with open('data/raw_data.json', 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
-    
-    print(f"📁 Data saved to {output_file}")
-    print(f"📊 Total items collected: {sum(len(v) if isinstance(v, list) else sum(len(vv) if isinstance(vv, list) else 0 for vv in v.values()) for v in data.values() if isinstance(v, (list, dict)))}")
+    print("📁 Saved to data/raw_data.json")
+
 
 if __name__ == "__main__":
     main()
